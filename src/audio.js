@@ -14,6 +14,7 @@ const MELODY_STEPS = [0, null, 1, null, 2, 1, null, 3, 2, null, 1, 0, null, 1, 2
 const MIN_CUE_GAP = { button: 0.045, place: 0.04, invalid: 0.12, clear: 0.09, apple: 0.09, win: 0.5, lose: 0.5 };
 const LOCAL_SAMPLES = ['button', 'place', 'clear', 'apple', 'win'];
 const PUBLIC_BASE_URL = import.meta.env.BASE_URL;
+const LOCAL_REFERENCE_ENABLED = import.meta.env.DEV || import.meta.env.VITE_USE_LOCAL_REFERENCE === 'true';
 
 function midiFrequency(note) {
   return 440 * 2 ** ((note - 69) / 12);
@@ -110,6 +111,7 @@ export class AudioEngine {
 
   async loadLocalSamples() {
     this.sampleLoadStarted = true;
+    if (!LOCAL_REFERENCE_ENABLED) return;
     if (typeof this.context?.decodeAudioData !== 'function' || !globalThis.location?.protocol?.startsWith('http')) return;
     await Promise.all(LOCAL_SAMPLES.map(async (name) => {
       try {

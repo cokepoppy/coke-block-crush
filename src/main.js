@@ -29,6 +29,7 @@ const levelLabel = document.querySelector('#level-label');
 const toastElement = document.querySelector('#toast');
 const audio = new AudioEngine();
 const publicBaseUrl = import.meta.env.BASE_URL;
+const localReferenceEnabled = import.meta.env.DEV || import.meta.env.VITE_USE_LOCAL_REFERENCE === 'true';
 
 const BOARD_LEFT = 23;
 const BOARD_TOP = 216;
@@ -58,35 +59,37 @@ let effectTimers = new Set();
 
 // A locally extracted reference pack can improve private visual study. It is
 // deliberately ignored by Git; the tracked SVG artwork remains the fallback.
-for (const name of Object.keys(art)) {
-  const probe = new Image();
-  probe.onload = () => {
-    art[name] = `${publicBaseUrl}local-reference/${name}.png`;
-    document.querySelectorAll(`[data-art="${name}"]`).forEach((image) => { image.src = art[name]; });
-  };
-  probe.src = `${publicBaseUrl}local-reference/${name}.png`;
-}
-for (const [tool, file] of Object.entries({ hammer: 'hammer', rewind: 'rewind', shuffle: 'shuffle', switcher: 'switcher', lighting: 'lighting' })) {
-  const probe = new Image();
-  probe.onload = () => {
-    const holder = document.querySelector(`.booster[data-tool="${tool}"] .booster-art`);
-    if (!holder) return;
-    const icon = document.createElement('img');
-    icon.src = `${publicBaseUrl}local-reference/${file}.png`;
-    icon.alt = '';
-    holder.replaceChildren(icon);
-  };
-  probe.src = `${publicBaseUrl}local-reference/${file}.png`;
-}
-{
-  const probe = new Image();
-  probe.onload = () => document.querySelectorAll('.padlock').forEach((holder) => {
-    const icon = document.createElement('img');
-    icon.src = `${publicBaseUrl}local-reference/lock.png`;
-    icon.alt = '';
-    holder.replaceChildren(icon);
-  });
-  probe.src = `${publicBaseUrl}local-reference/lock.png`;
+if (localReferenceEnabled) {
+  for (const name of Object.keys(art)) {
+    const probe = new Image();
+    probe.onload = () => {
+      art[name] = `${publicBaseUrl}local-reference/${name}.png`;
+      document.querySelectorAll(`[data-art="${name}"]`).forEach((image) => { image.src = art[name]; });
+    };
+    probe.src = `${publicBaseUrl}local-reference/${name}.png`;
+  }
+  for (const [tool, file] of Object.entries({ hammer: 'hammer', rewind: 'rewind', shuffle: 'shuffle', switcher: 'switcher', lighting: 'lighting' })) {
+    const probe = new Image();
+    probe.onload = () => {
+      const holder = document.querySelector(`.booster[data-tool="${tool}"] .booster-art`);
+      if (!holder) return;
+      const icon = document.createElement('img');
+      icon.src = `${publicBaseUrl}local-reference/${file}.png`;
+      icon.alt = '';
+      holder.replaceChildren(icon);
+    };
+    probe.src = `${publicBaseUrl}local-reference/${file}.png`;
+  }
+  {
+    const probe = new Image();
+    probe.onload = () => document.querySelectorAll('.padlock').forEach((holder) => {
+      const icon = document.createElement('img');
+      icon.src = `${publicBaseUrl}local-reference/lock.png`;
+      icon.alt = '';
+      holder.replaceChildren(icon);
+    });
+    probe.src = `${publicBaseUrl}local-reference/lock.png`;
+  }
 }
 
 function fitScreen() {
