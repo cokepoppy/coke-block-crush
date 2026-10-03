@@ -7,9 +7,15 @@
     "dev": "vite --host 127.0.0.1",
     "build": "vite build",
     "preview": "vite preview --host 127.0.0.1",
-    "test": "node --test"
+    "test": "node --test test/*.test.js",
+    "test:e2e": "playwright test",
+    "test:feedback": "npm run test && npm run build && npm run test:e2e",
+    "compare:reference": "node scripts/compare-reference.mjs"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "pixelmatch": "^7.2.0",
+    "sharp": "^0.35.5",
     "vite": "^7.1.0"
   }
 }

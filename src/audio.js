@@ -50,6 +50,8 @@ export class AudioEngine {
     this.musicSources = new Set();
     this.lastCueAt = new Map();
     this.samples = new Map();
+    this.musicVoicesScheduled = 0;
+    this.cuesPlayed = Object.create(null);
     this.sampleLoadStarted = false;
     this.disposed = false;
     this.handleVisibilityChange = () => this.syncVisibility();
@@ -58,6 +60,19 @@ export class AudioEngine {
 
   get ready() {
     return !!this.context && this.context.state === 'running' && !this.disposed;
+  }
+
+  get diagnostics() {
+    return {
+      ready: this.ready,
+      contextState: this.context?.state ?? 'not-created',
+      musicEnabled: this.musicEnabled,
+      effectsEnabled: this.effectsEnabled,
+      musicVoicesScheduled: this.musicVoicesScheduled,
+      cuesPlayed: { ...this.cuesPlayed },
+      activeSources: this.sources.size,
+      activeMusicSources: this.musicSources.size,
+    };
   }
 
   async start() {
@@ -230,6 +245,7 @@ export class AudioEngine {
     };
     oscillator.start(start);
     oscillator.stop(start + duration + 0.015);
+    if (music) this.musicVoicesScheduled += 1;
   }
 
   /** Names: place, invalid, clear, apple, win, button, lose. */
@@ -240,6 +256,7 @@ export class AudioEngine {
     const at = this.context.currentTime + Math.max(0, delay);
     if (at - (this.lastCueAt.get(cue) ?? -Infinity) < MIN_CUE_GAP[cue]) return false;
     this.lastCueAt.set(cue, at);
+    this.cuesPlayed[cue] = (this.cuesPlayed[cue] ?? 0) + 1;
 
     const sample = this.samples.get(cue);
     if (sample) {

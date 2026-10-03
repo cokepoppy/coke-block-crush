@@ -654,4 +654,29 @@ document.addEventListener('keydown', (event) => {
 render();
 
 // Kept read-only for browser QA; gameplay changes must still use visible controls.
-window.blockCrushStudy = Object.freeze({ version: '0.1.0', get snapshot() { return { level: state.level, apples: state.apples, target: state.target, score: state.score, status: state.status, moves: state.moves }; } });
+window.blockCrushStudy = Object.freeze({
+  version: '0.1.0',
+  get snapshot() {
+    return {
+      level: state.level,
+      apples: state.apples,
+      target: state.target,
+      score: state.score,
+      status: state.status,
+      moves: state.moves,
+      combo: state.combo,
+      chestProgress: state.chestProgress,
+      chestTarget: state.chestTarget,
+      objectives: (state.objectives ?? []).map((item) => ({ ...item })),
+      board: state.board.map((cell) => cell ? { color: cell.color, fruit: cell.fruit ?? (cell.apple ? 'apple' : null) } : null),
+      tray: state.tray.map((piece, index) => ({
+        id: piece.id,
+        slot: piece.slot ?? index,
+        name: piece.name,
+        color: piece.color,
+        cells: piece.cells.map((cell) => [...cell]),
+      })),
+      audio: audio.diagnostics,
+    };
+  },
+});

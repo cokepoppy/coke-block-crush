@@ -21,9 +21,12 @@ npm run dev
 npm test
 npm run build
 npm run preview
+npx playwright install chromium  # 首次运行浏览器回归时安装
+npm run test:e2e
+npm run test:feedback           # 单测 + 构建 + 浏览器回归
 ```
 
-`npm test` 检查 8×8 初态、放置边界、行列同时清除、多水果计数和重开状态；`npm run build` 生成 `dist/`。浏览器人工验收步骤与仍待验证的项目列在 [证据账本](docs/evidence-ledger.md#浏览器验收清单)。
+`npm test` 检查棋盘状态和规则；`npm run test:e2e` 用可见控件驱动 Playwright，验证固定帧、实际放置、无效重叠、清除动画、音频事件和重开。`npm run test:feedback` 会顺序运行单测、构建和浏览器回归。浏览器截图基线在 `test/e2e/game.spec.js-snapshots/`，只防本地实现回退；对比源游戏的裁切、差分图和 overlay 设置见 [自动反馈流程](skills/game-replica-research/references/automated-feedback.md)。`test-results/feedback/` 里的截图、视频与 Trace 被 Git 忽略。其他人工验收项仍列在 [证据账本](docs/evidence-ledger.md#浏览器验收清单)。
 
 ## 当前玩法
 
