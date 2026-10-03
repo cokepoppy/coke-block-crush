@@ -28,18 +28,19 @@ const goalContainer = document.querySelector('#goal-items');
 const levelLabel = document.querySelector('#level-label');
 const toastElement = document.querySelector('#toast');
 const audio = new AudioEngine();
+const publicBaseUrl = import.meta.env.BASE_URL;
 
 const BOARD_LEFT = 23;
 const BOARD_TOP = 216;
 const CELL = 43;
 const TOOL_UNLOCK = { hammer: 2, rewind: 3, shuffle: 4, switcher: 5, lighting: 6 };
 const art = {
-  apple: '/assets/apple.svg',
-  pear: '/assets/pear.svg',
-  avocado: '/assets/avocado.svg',
-  plum: '/assets/plum.svg',
-  cat: '/assets/cat-avatar.svg',
-  chest: '/assets/chest.svg',
+  apple: `${publicBaseUrl}assets/apple.svg`,
+  pear: `${publicBaseUrl}assets/pear.svg`,
+  avocado: `${publicBaseUrl}assets/avocado.svg`,
+  plum: `${publicBaseUrl}assets/plum.svg`,
+  cat: `${publicBaseUrl}assets/cat-avatar.svg`,
+  chest: `${publicBaseUrl}assets/chest.svg`,
 };
 
 const requestedStudyLevel = Number(new URLSearchParams(window.location.search).get('studyLevel'));
@@ -60,10 +61,10 @@ let effectTimers = new Set();
 for (const name of Object.keys(art)) {
   const probe = new Image();
   probe.onload = () => {
-    art[name] = `/local-reference/${name}.png`;
+    art[name] = `${publicBaseUrl}local-reference/${name}.png`;
     document.querySelectorAll(`[data-art="${name}"]`).forEach((image) => { image.src = art[name]; });
   };
-  probe.src = `/local-reference/${name}.png`;
+  probe.src = `${publicBaseUrl}local-reference/${name}.png`;
 }
 for (const [tool, file] of Object.entries({ hammer: 'hammer', rewind: 'rewind', shuffle: 'shuffle', switcher: 'switcher', lighting: 'lighting' })) {
   const probe = new Image();
@@ -71,21 +72,21 @@ for (const [tool, file] of Object.entries({ hammer: 'hammer', rewind: 'rewind', 
     const holder = document.querySelector(`.booster[data-tool="${tool}"] .booster-art`);
     if (!holder) return;
     const icon = document.createElement('img');
-    icon.src = `/local-reference/${file}.png`;
+    icon.src = `${publicBaseUrl}local-reference/${file}.png`;
     icon.alt = '';
     holder.replaceChildren(icon);
   };
-  probe.src = `/local-reference/${file}.png`;
+  probe.src = `${publicBaseUrl}local-reference/${file}.png`;
 }
 {
   const probe = new Image();
   probe.onload = () => document.querySelectorAll('.padlock').forEach((holder) => {
     const icon = document.createElement('img');
-    icon.src = '/local-reference/lock.png';
+    icon.src = `${publicBaseUrl}local-reference/lock.png`;
     icon.alt = '';
     holder.replaceChildren(icon);
   });
-  probe.src = '/local-reference/lock.png';
+  probe.src = `${publicBaseUrl}local-reference/lock.png`;
 }
 
 function fitScreen() {

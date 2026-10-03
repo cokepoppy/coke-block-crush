@@ -13,6 +13,7 @@ const CHORDS = [
 const MELODY_STEPS = [0, null, 1, null, 2, 1, null, 3, 2, null, 1, 0, null, 1, 2, null];
 const MIN_CUE_GAP = { button: 0.045, place: 0.04, invalid: 0.12, clear: 0.09, apple: 0.09, win: 0.5, lose: 0.5 };
 const LOCAL_SAMPLES = ['button', 'place', 'clear', 'apple', 'win'];
+const PUBLIC_BASE_URL = import.meta.env.BASE_URL;
 
 function midiFrequency(note) {
   return 440 * 2 ** ((note - 69) / 12);
@@ -112,7 +113,7 @@ export class AudioEngine {
     if (typeof this.context?.decodeAudioData !== 'function' || !globalThis.location?.protocol?.startsWith('http')) return;
     await Promise.all(LOCAL_SAMPLES.map(async (name) => {
       try {
-        const response = await fetch(`/local-reference/audio/${name}.wav`, { cache: 'force-cache' });
+        const response = await fetch(`${PUBLIC_BASE_URL}local-reference/audio/${name}.wav`, { cache: 'force-cache' });
         if (!response.ok || !response.headers.get('content-type')?.includes('audio')) return;
         const buffer = await this.context.decodeAudioData(await response.arrayBuffer());
         if (!this.disposed) this.samples.set(name, buffer);
