@@ -60,6 +60,10 @@ let effectTimers = new Set();
 // A locally extracted reference pack can improve private visual study. It is
 // deliberately ignored by Git; the tracked SVG artwork remains the fallback.
 if (localReferenceEnabled) {
+  document.documentElement.style.setProperty(
+    '--local-booster-frame',
+    `url("${publicBaseUrl}local-reference/power-up-frame.png")`,
+  );
   for (const name of Object.keys(art)) {
     const probe = new Image();
     probe.onload = () => {

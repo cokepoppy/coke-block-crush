@@ -16,7 +16,14 @@ function watchRuntime(page) {
     if (response.status() >= 400 && !response.url().includes('/local-reference/')) issues.push(`response: ${response.status()} ${response.url()}`);
   });
   page.on('requestfailed', (request) => {
-    if (!request.url().includes('/local-reference/')) issues.push(`request: ${request.url()} ${request.failure()?.errorText ?? ''}`);
+    const error = request.failure()?.errorText ?? '';
+    const expectedFallbackReplacementAbort = process.env.BLOCK_CRUSH_USE_LOCAL_REFERENCE
+      && request.resourceType() === 'image'
+      && error === 'net::ERR_ABORTED'
+      && /\/assets\/(?:apple|pear|avocado|plum|cat-avatar|chest)\.svg$/.test(new URL(request.url()).pathname);
+    if (!request.url().includes('/local-reference/') && !expectedFallbackReplacementAbort) {
+      issues.push(`request: ${request.url()} ${error}`);
+    }
   });
   return issues;
 }
