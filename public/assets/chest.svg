@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 80">
+  <defs><linearGradient id="lid" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#e09a49"/><stop offset="1" stop-color="#8d3f42"/></linearGradient><linearGradient id="box" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#b34e55"/><stop offset="1" stop-color="#5b2761"/></linearGradient></defs>
+  <ellipse cx="50" cy="72" rx="43" ry="7" fill="#2d225d" opacity=".4"/>
+  <path d="M13 31Q14 10 31 7h38q18 4 18 24v11H13Z" fill="url(#lid)" stroke="#693056" stroke-width="5"/>
+  <path d="M20 31V15Q20 9 30 8h40q9 2 10 12v14" fill="none" stroke="#ffcf66" stroke-width="7"/>
+  <path d="M13 37h74v30q-34 14-74 0Z" fill="url(#box)" stroke="#64265a" stroke-width="5"/>
+  <path d="M14 41q36 8 72 0" fill="none" stroke="#ebbd54" stroke-width="8"/>
+  <path d="M21 46v20m58-20v20" stroke="#e5a842" stroke-width="8"/>
+  <path d="M39 35h22v23q-11 6-22 0Z" fill="#f8ca60" stroke="#985129" stroke-width="3"/>
+  <path d="M44 43h12v9H44Z" fill="#7c4264"/>
+  <path d="M22 18q15-5 27-4" stroke="#ffe194" stroke-width="3" opacity=".8" fill="none"/>
+</svg>

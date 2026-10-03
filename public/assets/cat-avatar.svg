@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#445b8d"/><stop offset="1" stop-color="#272e62"/></linearGradient>
+    <radialGradient id="fur" cx=".48" cy=".35" r=".7"><stop stop-color="#fffaf1"/><stop offset=".65" stop-color="#d9d8dc"/><stop offset="1" stop-color="#9c9daa"/></radialGradient>
+    <radialGradient id="eye"><stop stop-color="#80ffe9"/><stop offset=".68" stop-color="#4ca1a9"/><stop offset="1" stop-color="#1d4b70"/></radialGradient>
+  </defs>
+  <rect x="2" y="2" width="96" height="96" rx="3" fill="#c7a064" stroke="#ece0bd" stroke-width="3"/>
+  <rect x="7" y="7" width="86" height="86" fill="url(#bg)"/>
+  <path d="M17 42 11 11 40 29M84 43l6-31-30 17" fill="#d0d0d4" stroke="#888b99" stroke-width="2"/>
+  <path d="M22 35 18 19l17 14M77 34l7-16-19 15" fill="#dd9eae"/>
+  <path d="M12 59c-2-24 16-41 39-41s39 17 39 42c0 23-18 34-40 34S13 83 12 59Z" fill="url(#fur)" stroke="#888b99" stroke-width="2"/>
+  <path d="M47 20c-10 3-15 7-17 12l13-4-3 9 12-9 13 5-7-12Z" fill="#72798a" opacity=".9"/>
+  <path d="M13 55c3-10 12-16 17-17-1 12 1 19 8 24l-19 3M87 55c-4-10-11-15-16-17 1 12-1 19-8 24l19 4" fill="#a8a9b1" opacity=".8"/>
+  <ellipse cx="36" cy="57" rx="11" ry="13" fill="#fafaf0"/>
+  <ellipse cx="64" cy="57" rx="11" ry="13" fill="#fafaf0"/>
+  <ellipse cx="37" cy="58" rx="7" ry="10" fill="url(#eye)"/>
+  <ellipse cx="63" cy="58" rx="7" ry="10" fill="url(#eye)"/>
+  <ellipse cx="38" cy="59" rx="3" ry="7" fill="#153845"/>
+  <ellipse cx="62" cy="59" rx="3" ry="7" fill="#153845"/>
+  <circle cx="35" cy="53" r="3" fill="#fff"/><circle cx="60" cy="53" r="3" fill="#fff"/>
+  <path d="M43 72q7-6 14 0l-7 5Z" fill="#bd7881" stroke="#876572" stroke-width="1.5"/>
+  <path d="M50 77q-3 7-9 3m9-3q3 7 9 3" fill="none" stroke="#7f6670" stroke-width="2" stroke-linecap="round"/>
+  <path d="M21 75 39 77M21 81l18-2M79 75l-18 2M79 81l-18-2" stroke="#a6a2a7" stroke-width="1.5"/>
+  <path d="M28 91c12-10 31-12 44 0" fill="#cd4252" stroke="#9b273b" stroke-width="3"/>
+  <circle cx="51" cy="91" r="4" fill="#f0c361"/>
+  <rect x="7" y="7" width="86" height="86" fill="none" stroke="#765f4b" stroke-width="1.5"/>
+</svg>
