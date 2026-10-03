@@ -11,15 +11,45 @@ const LEVEL_ONE = [
   '........',
 ];
 
+const LEVEL_TWO = [
+  'BB....BB',
+  'BB....BB',
+  '...YYY..',
+  '..YPPY..',
+  '..YVY...',
+  '..YYY..V',
+  'BB....BB',
+  'BB....BB',
+];
+
+// Level 7 is a replay fixture for the multi-fruit objective visible in the
+// user's WeChat recording. The colors and fruit targets are observed; empty
+// cells outside the sampled frames remain a hand-built playable layout.
+const LEVEL_SEVEN = [
+  'QPBBB..G',
+  '..B.BA..',
+  '..QP....',
+  '...AP...',
+  '....PP..',
+  '.....AP.',
+  '......PP',
+  '........',
+];
+
 const PIECE_POOL = [
   { name: 'single', color: 'green', cells: [[0, 0]] },
+  { name: 'single', color: 'blue', cells: [[0, 0]] },
   { name: 'domino', color: 'pink', cells: [[0, 0], [1, 0]] },
   { name: 'domino', color: 'green', cells: [[0, 0], [1, 0]] },
+  { name: 'domino', color: 'yellow', cells: [[0, 0], [1, 0]] },
   { name: 'bar', color: 'pink', cells: [[0, 0], [1, 0], [2, 0]] },
   { name: 'bar', color: 'green', cells: [[0, 0], [1, 0], [2, 0]] },
+  { name: 'bar', color: 'blue', cells: [[0, 0], [0, 1], [0, 2]] },
   { name: 'corner', color: 'pink', cells: [[0, 0], [0, 1], [1, 1]] },
   { name: 'corner', color: 'green', cells: [[0, 0], [0, 1], [1, 1]] },
+  { name: 'corner', color: 'blue', cells: [[0, 0], [1, 0], [0, 1]] },
   { name: 'square', color: 'green', cells: [[0, 0], [1, 0], [0, 1], [1, 1]] },
+  { name: 'L', color: 'green', cells: [[0, 0], [0, 1], [0, 2], [1, 2]] },
 ];
 
 const cloneCell = (cell) => cell ? { ...cell } : null;
@@ -33,16 +63,44 @@ export function boardFromRows(rows) {
     if (symbol === '.') return null;
     if (symbol === 'P') return { color: 'pink', apple: false };
     if (symbol === 'G') return { color: 'green', apple: false };
-    if (symbol === 'A') return { color: 'green', apple: true };
+    if (symbol === 'B') return { color: 'blue', apple: false };
+    if (symbol === 'Y') return { color: 'yellow', apple: false };
+    if (symbol === 'A') return { color: 'green', apple: true, fruit: 'apple' };
+    if (symbol === 'Q') return { color: 'pink', apple: false, fruit: 'pear' };
+    if (symbol === 'V') return { color: 'green', apple: false, fruit: 'avocado' };
     throw new Error(`Unknown board symbol: ${symbol}`);
   }));
 }
 
+export function fruitType(cell) {
+  return cell?.fruit ?? (cell?.apple ? 'apple' : null);
+}
+
+function allObjectivesMet(state) {
+  return (state.objectives ?? [{ kind: 'apple', collected: state.apples, target: state.target }])
+    .every((objective) => objective.collected >= objective.target);
+}
+
+function collectFruits(state, fruitCells) {
+  const collectedByKind = {};
+  for (const item of fruitCells) collectedByKind[item.fruit] = (collectedByKind[item.fruit] ?? 0) + 1;
+  const objectives = (state.objectives ?? [{ kind: 'apple', collected: state.apples, target: state.target }])
+    .map((objective) => ({
+      ...objective,
+      collected: Math.min(objective.target, objective.collected + (collectedByKind[objective.kind] ?? 0)),
+    }));
+  return {
+    objectives,
+    apples: objectives.find((objective) => objective.kind === 'apple')?.collected ?? state.apples,
+    collectedByKind,
+  };
+}
+
 export function createInitialState(level = 1) {
-  const board = boardFromRows(LEVEL_ONE);
-  const target = level === 1 ? 3 : Math.min(3 + level, 8);
-  if (level > 1) {
-    let needed = Math.max(0, target - 1 - board.filter((cell) => cell?.apple).length);
+  const board = boardFromRows(level === 7 ? LEVEL_SEVEN : level === 2 ? LEVEL_TWO : LEVEL_ONE);
+  const target = level === 6 ? 4 : 3;
+  if (level > 1 && level !== 2 && level !== 7) {
+    let needed = Math.max(0, target - board.filter((cell) => cell?.apple).length);
     for (let offset = 0; offset < board.length && needed > 0; offset += 1) {
       const index = (level * 17 + offset * 13) % board.length;
       if (board[index] === null) {
@@ -51,18 +109,41 @@ export function createInitialState(level = 1) {
       }
     }
   }
+  const objectives = level === 7
+    ? [{ kind: 'pear', collected: 0, target: 2 }, { kind: 'apple', collected: 0, target: 3 }]
+    : [{ kind: level === 2 ? 'avocado' : 'apple', collected: 0, target }];
+  const starterPieces = level === 1
+    ? [{ id: 1, name: 'single', color: 'green', cells: [[0, 0]], appleAt: 0 }]
+    : level === 2
+      ? [
+        { id: 1, name: 'long bar', color: 'blue', cells: [[0, 0], [0, 1], [0, 2], [0, 3]], fruitAt: 2, fruit: 'avocado' },
+        { id: 2, name: 'hook', color: 'blue', cells: [[0, 0], [1, 0], [2, 0], [0, 1], [0, 2]] },
+        { id: 3, name: 'corner', color: 'yellow', cells: [[0, 0], [0, 1], [1, 1]] },
+      ]
+    : level === 7
+      ? [
+        { id: 1, name: 'corner', color: 'blue', cells: [[0, 0], [1, 0], [0, 1]] },
+        { id: 2, name: 'bar', color: 'blue', cells: [[0, 0], [0, 1], [0, 2]] },
+        { id: 3, name: 'L', color: 'green', cells: [[0, 0], [0, 1], [0, 2], [1, 2]] },
+      ]
+      : null;
+  const seededTray = starterPieces ? null : refillTray((0xC0C0A + level) >>> 0, 1);
+  const tray = starterPieces ?? seededTray.pieces;
+  const chestTargets = { 1: 500, 2: 500, 3: 1500, 4: 1500, 5: 1500, 6: 3000, 7: 3000 };
   return {
     level,
     board,
-    tray: [{ id: 1, name: 'single', color: 'green', cells: [[0, 0]], appleAt: 0 }],
-    nextPieceId: 2,
-    seed: (0xC0C0A + level) >>> 0,
+    tray,
+    nextPieceId: tray.length + 1,
+    seed: seededTray?.seed ?? (0xC0C0A + level) >>> 0,
     apples: 0,
     target,
-    chestProgress: 2,
+    objectives,
+    chestProgress: level === 1 ? 2 : level === 7 ? 2006 : 2,
+    chestTarget: chestTargets[level] ?? 500,
     score: 0,
     moves: 0,
-    movesLeft: level === 1 ? null : 40,
+    movesLeft: null,
     combo: 0,
     status: 'playing',
     generation: 0,
@@ -118,7 +199,8 @@ export function placePiece(state, pieceId, anchorX, anchorY) {
   piece.cells.forEach(([dx, dy], index) => {
     const x = anchorX + dx;
     const y = anchorY + dy;
-    board[y * BOARD_SIZE + x] = { color: piece.color, apple: piece.appleAt === index };
+    const fruit = piece.fruitAt === index ? piece.fruit : piece.appleAt === index ? 'apple' : null;
+    board[y * BOARD_SIZE + x] = { color: piece.color, apple: fruit === 'apple', ...(fruit ? { fruit } : {}) };
     placed.push({ x, y });
   });
 
@@ -132,15 +214,14 @@ export function placePiece(state, pieceId, anchorX, anchorY) {
   for (const y of fullRows) for (let x = 0; x < BOARD_SIZE; x += 1) clearIndices.add(y * BOARD_SIZE + x);
   for (const x of fullColumns) for (let y = 0; y < BOARD_SIZE; y += 1) clearIndices.add(y * BOARD_SIZE + x);
   const clearedCells = [...clearIndices].map((index) => ({ x: index % BOARD_SIZE, y: Math.floor(index / BOARD_SIZE), color: board[index]?.color, apple: Boolean(board[index]?.apple) }));
-  let collected = 0;
-  const appleCells = [];
+  const fruitCells = [];
   for (const index of clearIndices) {
-    if (board[index]?.apple) {
-      collected += 1;
-      appleCells.push({ x: index % BOARD_SIZE, y: Math.floor(index / BOARD_SIZE) });
-    }
+    const fruit = fruitType(board[index]);
+    if (fruit) fruitCells.push({ x: index % BOARD_SIZE, y: Math.floor(index / BOARD_SIZE), fruit });
     board[index] = null;
   }
+
+  const fruitUpdate = collectFruits(state, fruitCells);
 
   let tray = state.tray.filter((item) => item.id !== pieceId);
   let seed = state.seed;
@@ -152,11 +233,11 @@ export function placePiece(state, pieceId, anchorX, anchorY) {
     nextPieceId = refill.nextPieceId;
   }
 
-  const apples = Math.min(state.target, state.apples + collected);
+  const apples = fruitUpdate.apples;
   const combo = clearIndices.size ? state.combo + 1 : 0;
   const movesLeft = state.movesLeft === null ? null : Math.max(0, state.movesLeft - 1);
   const score = state.score + piece.cells.length * 10 + clearIndices.size * 20 + (fullRows.length + fullColumns.length > 1 ? 80 : 0) + (combo > 1 ? combo * 20 : 0);
-  const status = apples >= state.target ? 'won' : movesLeft === 0 || !hasMove(board, tray) ? 'lost' : 'playing';
+  const status = fruitUpdate.objectives.every((objective) => objective.collected >= objective.target) ? 'won' : movesLeft === 0 || !hasMove(board, tray) ? 'lost' : 'playing';
   const nextState = {
     ...state,
     board,
@@ -164,15 +245,23 @@ export function placePiece(state, pieceId, anchorX, anchorY) {
     seed,
     nextPieceId,
     apples,
+    objectives: fruitUpdate.objectives,
     score,
     combo,
     movesLeft,
-    chestProgress: Math.min(500, state.chestProgress + piece.cells.length + clearIndices.size),
+    chestProgress: Math.min(state.chestTarget, state.chestProgress + piece.cells.length + clearIndices.size),
     moves: state.moves + 1,
     status,
   };
   const events = [{ type: 'placed', cells: placed }];
-  if (clearIndices.size) events.push({ type: 'cleared', cells: clearedCells, rows: fullRows, columns: fullColumns, apples: collected, appleCells, combo });
+  if (clearIndices.size) events.push({
+    type: 'cleared', cells: clearedCells, rows: fullRows, columns: fullColumns,
+    apples: fruitUpdate.collectedByKind.apple ?? 0,
+    fruits: fruitUpdate.collectedByKind,
+    fruitCells,
+    appleCells: fruitCells.filter((item) => item.fruit === 'apple'),
+    combo,
+  });
   if (status === 'won') events.push({ type: 'won' });
   if (status === 'lost') events.push({ type: 'lost' });
   return { state: nextState, events };
@@ -183,11 +272,15 @@ export function removeCell(state, x, y) {
   const index = y * BOARD_SIZE + x;
   if (!state.board[index]) return { state, events: [{ type: 'invalid' }] };
   const board = state.board.map(cloneCell);
-  const apple = board[index].apple;
+  const fruit = fruitType(board[index]);
   board[index] = null;
-  const apples = Math.min(state.target, state.apples + (apple ? 1 : 0));
-  const status = apples >= state.target ? 'won' : 'playing';
-  return { state: { ...state, board, apples, status }, events: [{ type: 'hammer', cells: [{ x, y }], apples: apple ? 1 : 0 }, ...(status === 'won' ? [{ type: 'won' }] : [])] };
+  const fruitCells = fruit ? [{ x, y, fruit }] : [];
+  const fruitUpdate = collectFruits(state, fruitCells);
+  const status = fruitUpdate.objectives.every((objective) => objective.collected >= objective.target) ? 'won' : 'playing';
+  return {
+    state: { ...state, board, apples: fruitUpdate.apples, objectives: fruitUpdate.objectives, status },
+    events: [{ type: 'hammer', cells: [{ x, y }], apples: fruit === 'apple' ? 1 : 0, fruits: fruitUpdate.collectedByKind, fruitCells }, ...(status === 'won' ? [{ type: 'won' }] : [])],
+  };
 }
 
 export function removeColor(state, x, y) {
@@ -201,12 +294,17 @@ export function removeColor(state, x, y) {
     if (cell?.color !== target.color) return;
     const position = { x: index % BOARD_SIZE, y: Math.floor(index / BOARD_SIZE) };
     cells.push(position);
-    if (cell.apple) appleCells.push(position);
+    const fruit = fruitType(cell);
+    if (fruit) appleCells.push({ ...position, fruit });
     board[index] = null;
   });
-  const apples = Math.min(state.target, state.apples + appleCells.length);
-  const status = apples >= state.target ? 'won' : 'playing';
-  return { state: { ...state, board, apples, status, score: state.score + cells.length * 20 }, events: [{ type: 'rainbow', cells, apples: appleCells.length, appleCells }, ...(status === 'won' ? [{ type: 'won' }] : [])] };
+  const fruitCells = appleCells;
+  const fruitUpdate = collectFruits(state, fruitCells);
+  const status = fruitUpdate.objectives.every((objective) => objective.collected >= objective.target) ? 'won' : 'playing';
+  return {
+    state: { ...state, board, apples: fruitUpdate.apples, objectives: fruitUpdate.objectives, status, score: state.score + cells.length * 20 },
+    events: [{ type: 'rainbow', cells, apples: fruitUpdate.collectedByKind.apple ?? 0, fruits: fruitUpdate.collectedByKind, fruitCells }, ...(status === 'won' ? [{ type: 'won' }] : [])],
+  };
 }
 
 export function shuffleTray(state) {
@@ -219,14 +317,23 @@ export function shuffleTray(state) {
 export function switchPieceColor(state, pieceId) {
   if (state.status !== 'playing') return { state, events: [{ type: 'ignored' }] };
   if (!state.tray.some((piece) => piece.id === pieceId)) return { state, events: [{ type: 'invalid' }] };
-  const tray = state.tray.map((piece) => piece.id === pieceId ? { ...piece, color: piece.color === 'green' ? 'pink' : 'green' } : piece);
+  const palette = ['green', 'pink', 'blue', 'yellow'];
+  const tray = state.tray.map((piece) => {
+    if (piece.id !== pieceId) return piece;
+    return { ...piece, color: palette[(palette.indexOf(piece.color) + 1) % palette.length] };
+  });
   return { state: { ...state, tray }, events: [{ type: 'switcher' }] };
 }
 
 export function restart(state) {
-  return { ...createInitialState(state.level), generation: state.generation + 1 };
+  return { ...createInitialState(state.level), chestProgress: state.chestProgress, generation: state.generation + 1 };
 }
 
 export function nextLevel(state) {
-  return { ...createInitialState(state.level + 1), generation: state.generation + 1 };
+  const nextState = createInitialState(state.level + 1);
+  return {
+    ...nextState,
+    chestProgress: Math.min(nextState.chestTarget, state.chestProgress),
+    generation: state.generation + 1,
+  };
 }

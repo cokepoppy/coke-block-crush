@@ -19,11 +19,12 @@ const trayElement = document.querySelector('#tray');
 const effectsElement = document.querySelector('#effects');
 const modalElement = document.querySelector('#modal');
 const goalCard = document.querySelector('.goal-card');
-const goalCount = document.querySelector('#goal-count');
 const movesCard = document.querySelector('#moves-card');
 const movesCount = document.querySelector('#moves-count');
 const chestCount = document.querySelector('#chest-count');
 const chestFill = document.querySelector('#chest-fill');
+const chestProgressElement = document.querySelector('.chest-progress');
+const goalContainer = document.querySelector('#goal-items');
 const levelLabel = document.querySelector('#level-label');
 const toastElement = document.querySelector('#toast');
 const audio = new AudioEngine();
@@ -32,9 +33,19 @@ const BOARD_LEFT = 23;
 const BOARD_TOP = 216;
 const CELL = 43;
 const TOOL_UNLOCK = { hammer: 2, rewind: 3, shuffle: 4, switcher: 5, lighting: 6 };
-const art = { apple: '/assets/apple.svg', cat: '/assets/cat-avatar.svg', chest: '/assets/chest.svg' };
+const art = {
+  apple: '/assets/apple.svg',
+  pear: '/assets/pear.svg',
+  avocado: '/assets/avocado.svg',
+  cat: '/assets/cat-avatar.svg',
+  chest: '/assets/chest.svg',
+};
 
-let state = createInitialState();
+const requestedStudyLevel = Number(new URLSearchParams(window.location.search).get('studyLevel'));
+const initialStudyLevel = Number.isInteger(requestedStudyLevel) && requestedStudyLevel >= 1 && requestedStudyLevel <= 7
+  ? requestedStudyLevel
+  : 1;
+let state = createInitialState(initialStudyLevel);
 let selectedPieceId = null;
 let activeTool = null;
 let drag = null;
@@ -86,10 +97,11 @@ function tileElement(cell, small = false, justPlaced = false) {
   const tile = document.createElement('span');
   tile.className = `tile ${cell.color}${justPlaced ? ' just-placed' : ''}`;
   if (small) tile.classList.add('mini');
-  if (cell.apple) {
+  const fruit = cell.fruit ?? (cell.apple ? 'apple' : null);
+  if (fruit) {
     const apple = document.createElement('img');
-    apple.src = art.apple;
-    apple.dataset.art = 'apple';
+    apple.src = art[fruit] ?? art.apple;
+    apple.dataset.art = fruit;
     apple.alt = '';
     tile.append(apple);
   }
@@ -108,7 +120,8 @@ function renderBoard(justPlaced = []) {
     button.dataset.x = x;
     button.dataset.y = y;
     button.setAttribute('role', 'gridcell');
-    button.setAttribute('aria-label', `Row ${y + 1}, column ${x + 1}: ${cell ? `${cell.color} block${cell.apple ? ' with apple' : ''}` : 'empty'}`);
+    const fruit = cell?.fruit ?? (cell?.apple ? 'apple' : null);
+    button.setAttribute('aria-label', `Row ${y + 1}, column ${x + 1}: ${cell ? `${cell.color} block${fruit ? ` with ${fruit}` : ''}` : 'empty'}`);
     if (cell) button.append(tileElement(cell, false, placed.has(index)));
     fragment.append(button);
   });
@@ -129,9 +142,12 @@ function renderTray() {
       button.dataset.pieceId = piece.id;
       button.style.setProperty('--piece-cols', width);
       button.style.setProperty('--piece-rows', height);
-      button.setAttribute('aria-label', `${piece.color} ${piece.name} piece, ${piece.cells.length} blocks${piece.appleAt !== undefined ? ', with apple' : ''}`);
+      const fruitAt = piece.fruitAt ?? piece.appleAt;
+      const fruitName = piece.fruitAt !== undefined ? piece.fruit : piece.appleAt !== undefined ? 'apple' : null;
+      button.setAttribute('aria-label', `${piece.color} ${piece.name} piece, ${piece.cells.length} blocks${fruitAt !== undefined ? `, with ${fruitName}` : ''}`);
       piece.cells.forEach(([x, y], index) => {
-        const tile = tileElement({ color: piece.color, apple: piece.appleAt === index }, true);
+        const fruit = piece.fruitAt === index ? piece.fruit : piece.appleAt === index ? 'apple' : null;
+        const tile = tileElement({ color: piece.color, apple: fruit === 'apple', fruit }, true);
         tile.style.gridColumn = String(x + 1);
         tile.style.gridRow = String(y + 1);
         button.append(tile);
@@ -145,11 +161,27 @@ function renderTray() {
 
 function renderHeader() {
   levelLabel.textContent = `Level ${state.level}`;
-  goalCount.textContent = `${state.apples}/${state.target}`;
+  const objectives = state.objectives ?? [{ kind: 'apple', collected: state.apples, target: state.target }];
+  goalCard.classList.toggle('multi-goal', objectives.length > 1);
+  goalContainer.replaceChildren(...objectives.map((objective) => {
+    const item = document.createElement('span');
+    item.className = 'goal-item';
+    item.dataset.goalKind = objective.kind;
+    const image = document.createElement('img');
+    image.src = art[objective.kind] ?? art.apple;
+    image.dataset.art = objective.kind;
+    image.alt = { pear: 'Pears', avocado: 'Avocados', apple: 'Apples' }[objective.kind] ?? 'Fruit';
+    const count = document.createElement('span');
+    count.className = 'goal-count';
+    count.textContent = `${objective.collected}/${objective.target}`;
+    item.append(image, count);
+    return item;
+  }));
   movesCard.classList.toggle('hidden', state.movesLeft === null);
   if (state.movesLeft !== null) movesCount.textContent = String(state.movesLeft);
-  chestCount.textContent = `${state.chestProgress}/500`;
-  chestFill.style.width = `${Math.max(1, state.chestProgress / 5)}%`;
+  chestCount.textContent = `${state.chestProgress}/${state.chestTarget}`;
+  chestFill.style.width = `${Math.max(1, (state.chestProgress / state.chestTarget) * 100)}%`;
+  chestProgressElement.classList.toggle('advanced-chest', state.level >= 3);
   document.querySelectorAll('.booster').forEach((button) => {
     const required = TOOL_UNLOCK[button.dataset.tool];
     const unlocked = state.level >= required;
@@ -218,7 +250,7 @@ function addClearFlash(x, y) {
 
 function addBoardGlow() {
   const glow = document.createElement('span');
-  glow.className = 'board-glow';
+  glow.className = `board-glow${state.level <= 3 ? ' early-fruit-glow' : ''}`;
   effectsElement.append(glow);
   later(800, () => glow.remove());
 }
@@ -226,7 +258,7 @@ function addBoardGlow() {
 function addLineBeam(event) {
   for (const row of event.rows ?? []) {
     const beam = document.createElement('span');
-    beam.className = 'line-beam';
+    beam.className = `line-beam${event.fruitCells?.length ? ' fruit-beam' : ''}`;
     beam.style.left = `${BOARD_LEFT}px`;
     beam.style.top = `${BOARD_TOP + row * CELL + CELL / 2 - 3}px`;
     beam.style.width = `${BOARD_SIZE * CELL}px`;
@@ -236,7 +268,7 @@ function addLineBeam(event) {
   }
   for (const column of event.columns ?? []) {
     const beam = document.createElement('span');
-    beam.className = 'line-beam';
+    beam.className = `line-beam${event.fruitCells?.length ? ' fruit-beam' : ''}`;
     beam.style.left = `${BOARD_LEFT + column * CELL + CELL / 2 - 3}px`;
     beam.style.top = `${BOARD_TOP}px`;
     beam.style.width = '6px';
@@ -269,26 +301,59 @@ function addShards(x, y, color = 'green') {
 
 function addClearBanner(event) {
   const banner = document.createElement('div');
-  banner.className = 'clear-banner';
-  const combo = event.combo > 1 ? `<span class="combo">Combo <em>${event.combo}</em></span>` : '';
-  const praise = event.cells.length >= 16 ? 'Perfect!' : 'Good!';
-  banner.innerHTML = `${combo}<span class="praise ${praise === 'Good!' ? 'good' : ''}">${praise}</span>`;
+  if ((state.objectives?.length ?? 1) > 1) {
+    const total = state.objectives.reduce((sum, item) => sum + item.target, 0);
+    const done = state.objectives.reduce((sum, item) => sum + item.collected, 0);
+    const percent = Math.round((done / total) * 100);
+    banner.className = 'clear-banner progress-banner';
+    const mascot = document.createElement('span');
+    mascot.className = 'progress-mascot';
+    mascot.setAttribute('aria-hidden', 'true');
+    mascot.textContent = '•ᴗ•';
+    const ribbon = document.createElement('span');
+    ribbon.className = 'progress-ribbon';
+    ribbon.textContent = `${percent}% DONE`;
+    banner.append(mascot, ribbon);
+  } else {
+    banner.className = 'clear-banner';
+    if (event.combo > 1) {
+      const combo = document.createElement('span');
+      combo.className = 'combo';
+      combo.append(document.createTextNode('Combo '));
+      const number = document.createElement('em');
+      number.textContent = String(event.combo);
+      combo.append(number);
+      banner.append(combo);
+    }
+    const praise = event.cells.length >= 16 ? 'Perfect!' : 'Good!';
+    const praiseElement = document.createElement('span');
+    praiseElement.className = `praise${praise === 'Good!' ? ' good' : ''}`;
+    praiseElement.textContent = praise;
+    banner.append(praiseElement);
+  }
   effectsElement.append(banner);
   later(1230, () => banner.remove());
 }
 
-function flyApple(x, y) {
+function flyFruit(kind, x, y) {
   const origin = cellCenter(x, y);
+  const goal = document.querySelector(`[data-goal-kind="${kind}"]`);
+  const gameRect = game.getBoundingClientRect();
+  const scale = gameRect.width / 390;
+  const goalRect = goal?.getBoundingClientRect();
+  const destination = goalRect
+    ? { x: (goalRect.left + goalRect.width / 2 - gameRect.left) / scale, y: (goalRect.top + goalRect.height / 2 - gameRect.top) / scale }
+    : { x: 193, y: 173 };
   const fruit = document.createElement('img');
-  fruit.src = art.apple;
-  fruit.dataset.art = 'apple';
-  fruit.className = 'flying-apple';
-  fruit.style.left = `${origin.x - 18}px`;
-  fruit.style.top = `${origin.y - 22}px`;
-  fruit.style.setProperty('--dx', `${193 - origin.x}px`);
-  fruit.style.setProperty('--dy', `${173 - origin.y}px`);
+  fruit.src = art[kind] ?? art.apple;
+  fruit.dataset.art = kind;
+  fruit.className = 'flying-fruit';
+  fruit.style.left = `${origin.x - 19}px`;
+  fruit.style.top = `${origin.y - 23}px`;
+  fruit.style.setProperty('--dx', `${destination.x - origin.x}px`);
+  fruit.style.setProperty('--dy', `${destination.y - origin.y}px`);
   effectsElement.append(fruit);
-  later(660, () => fruit.remove());
+  later(760, () => fruit.remove());
 }
 
 function floatScore(x, y, text) {
@@ -310,7 +375,7 @@ function playEffects(events) {
       }
     }
     if (event.type === 'cleared' || event.type === 'rainbow') {
-      addBoardGlow();
+      if ((state.objectives?.length ?? 1) < 2) addBoardGlow();
       addLineBeam(event);
       addClearBanner(event);
       event.cells.forEach(({ x, y }, index) => {
@@ -321,8 +386,10 @@ function playEffects(events) {
           if (index % 2 === 0) addBurst(center.x, center.y, 4, index % 4 === 0 ? '#5beaff' : '#fff0b8');
         });
       });
-      for (const position of event.appleCells ?? []) flyApple(position.x, position.y);
-      if (event.apples) {
+      for (const position of event.fruitCells ?? (event.appleCells ?? []).map((item) => ({ ...item, fruit: 'apple' }))) {
+        flyFruit(position.fruit ?? 'apple', position.x, position.y);
+      }
+      if (event.fruitCells?.length || event.apples) {
         goalCard.classList.remove('bump');
         void goalCard.offsetWidth;
         later(270, () => goalCard.classList.add('bump'));
@@ -334,7 +401,8 @@ function playEffects(events) {
         const center = cellCenter(x, y);
         addClearFlash(x, y);
         addBurst(center.x, center.y, 12);
-        if (event.apples) flyApple(x, y);
+        const fruit = event.fruitCells?.find((item) => item.x === x && item.y === y)?.fruit;
+        if (fruit) flyFruit(fruit, x, y);
       }
     }
     if (event.type === 'shuffle') showToast('Blocks shuffled!');
@@ -402,7 +470,8 @@ function makeGhost(piece) {
   ghost.style.setProperty('--piece-cols', width);
   ghost.style.setProperty('--piece-rows', height);
   piece.cells.forEach(([x, y], index) => {
-    const tile = tileElement({ color: piece.color, apple: piece.appleAt === index });
+    const fruit = piece.fruitAt === index ? piece.fruit : piece.appleAt === index ? 'apple' : null;
+    const tile = tileElement({ color: piece.color, apple: fruit === 'apple', fruit });
     tile.style.gridColumn = String(x + 1);
     tile.style.gridRow = String(y + 1);
     ghost.append(tile);
@@ -526,9 +595,11 @@ function showModal(kind) {
   } else if (kind === 'village') {
     body = `<div class="panel"><button class="close" data-action="close" aria-label="Close">×</button><h2>Village</h2><div class="village-map" aria-hidden="true"><span>🌲</span><span>🏡</span><span>🍄</span></div><p>Collect apples and clear levels to help the village grow.</p><button class="panel-button" data-action="close">Back to Puzzle</button></div>`;
   } else if (kind === 'won') {
-    body = `<div class="panel"><h2>Level Complete!</h2><img class="large-apple" src="${art.apple}" data-art="apple" alt="Apple" /><p>${state.apples}/${state.target} apples collected<br>Score ${state.score}</p><button class="panel-button" data-action="next">Next Level</button></div>`;
+    const collected = state.objectives.map((item) => `${item.collected}/${item.target} ${{ pear: 'pears', avocado: 'avocados', apple: 'apples' }[item.kind] ?? 'fruit'}`).join(' · ');
+    body = `<div class="panel"><h2>Level Complete!</h2><div class="reward-fruits">${state.objectives.map((item) => `<img src="${art[item.kind] ?? art.apple}" data-art="${item.kind}" alt="" />`).join('')}</div><p>${collected}<br>Score ${state.score}</p><button class="panel-button" data-action="next">Next Level</button></div>`;
   } else {
-    body = `<div class="panel"><h2>No More Moves</h2><p>Try another route to collect all ${state.target} apples.</p><button class="panel-button" data-action="restart">Retry Level</button></div>`;
+    const remaining = state.objectives.map((item) => `${item.target - item.collected} ${{ pear: 'pears', avocado: 'avocados', apple: 'apples' }[item.kind] ?? 'fruit'}`).join(' and ');
+    body = `<div class="panel"><h2>No More Moves</h2><p>Try another route to collect ${remaining}.</p><button class="panel-button" data-action="restart">Retry Level</button></div>`;
   }
   modalElement.innerHTML = body;
   modalElement.classList.remove('hidden');

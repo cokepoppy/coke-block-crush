@@ -10,6 +10,7 @@ Build from observable evidence. Keep the user's requested target and scope autho
 ## Establish the reference
 
 - Record the source URL or local path, capture date, title/publisher, apparent build or level, video duration, orientation, resolution, and any uncertainty about identity. Store a screenshot and the exact timecode for each cited scene. If a screenshot includes player controls, social UI, captions, or device chrome, mark the game-content rectangle separately before measuring or implementing it.
+- Search in narrowing passes and verify candidate identity against publisher/app ID and visible game assets. Use [source discovery](references/source-discovery.md) to record YouTube search limits, user-opened video provenance, and rejected same-name games.
 - When sources disagree, select and name the version being replicated. A store screenshot, third-party recording, and user's screenshot may show different builds. Never silently blend their layouts or rules.
 - Keep an evidence ledger with `observed` (direct frame/audio/input), `inferred` (supported by several observations), and `provisional` (design choice for an unobserved gap). Link each claim to source, time or frame, before/after state, and implementation. Do not describe discrete video seeks as frame-by-frame analysis. Use [capture and comparison](references/capture-and-comparison.md) when preparing video or measuring a pixel-level match.
 

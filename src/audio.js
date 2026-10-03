@@ -300,17 +300,17 @@ export class AudioEngine {
     if (!event) return;
     if (event.type === 'hammer') {
       this.play('button');
-      if (event.apples) this.play('apple', { delay: 0.07 });
+      if (event.fruitCells?.length || event.apples) this.play('apple', { delay: 0.07 });
       return;
     }
     if (event.type === 'cleared') {
       this.play('clear');
-      if (event.apples) this.play('apple', { delay: 0.14 });
+      if (event.fruitCells?.length || event.apples) this.play('apple', { delay: 0.14 });
       return;
     }
     if (event.type === 'rainbow') {
       this.play('clear');
-      if (event.apples) this.play('apple', { delay: 0.14 });
+      if (event.fruitCells?.length || event.apples) this.play('apple', { delay: 0.14 });
       return;
     }
     this.play(event.type);

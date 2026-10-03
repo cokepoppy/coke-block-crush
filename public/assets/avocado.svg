@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 72" fill="none">
+  <defs>
+    <linearGradient id="skin" x1="10" y1="12" x2="53" y2="65" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#9BE552"/>
+      <stop offset=".58" stop-color="#4DAD3F"/>
+      <stop offset="1" stop-color="#26733A"/>
+    </linearGradient>
+    <linearGradient id="flesh" x1="17" y1="17" x2="48" y2="61" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FAFF9B"/>
+      <stop offset=".55" stop-color="#D9F46A"/>
+      <stop offset="1" stop-color="#A9D746"/>
+    </linearGradient>
+  </defs>
+  <path d="M32 9C22 9 18 20 16 28 7 38 8 50 14 59c4 7 11 10 18 10s14-3 18-10c6-9 7-21-2-31C46 20 42 9 32 9Z" fill="url(#skin)" stroke="#27552F" stroke-width="3"/>
+  <path d="M32 16c-8 0-11 9-13 16-7 7-7 17-2 24 3 5 9 8 15 8s12-3 15-8c5-7 5-17-2-24-2-7-5-16-13-16Z" fill="url(#flesh)" stroke="#FFF4A2" stroke-width="2"/>
+  <ellipse cx="32" cy="43" rx="8.5" ry="11" fill="#965323" stroke="#60351F" stroke-width="2"/>
+  <ellipse cx="29.5" cy="39" rx="2.4" ry="3.2" fill="#D89A53" opacity=".8"/>
+  <path d="M23 27c2-5 5-8 9-8" stroke="#FFF9C3" stroke-width="3" stroke-linecap="round" opacity=".9"/>
+  <path d="M33 11c2-6 7-8 14-7-2 7-7 10-13 10" fill="#65C74A" stroke="#27552F" stroke-width="2" stroke-linejoin="round"/>
+</svg>
