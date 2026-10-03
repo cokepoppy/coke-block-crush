@@ -183,18 +183,56 @@ test('touch dragging from a piece bottom cell keeps that cell under the finger a
   assert.ok(Math.abs(liftedGrabCenter.x - outsidePoint.x) <= 2, `lifted cell x ${liftedGrabCenter.x} should follow finger x ${outsidePoint.x}`);
   assert.ok(Math.abs(liftedGrabCenter.y - outsidePoint.y) <= 2, `lifted cell y ${liftedGrabCenter.y} should follow finger y ${outsidePoint.y}`);
 
-  for (let step = 1; step <= 12; step += 1) {
-    const fraction = step / 12;
+  const grabbedIndex = piece.cells.findIndex(([x, y]) => x === grabbedCell[0] && y === grabbedCell[1]);
+  const grabbedGhostTile = page.locator('.drag-ghost-body .tile').nth(grabbedIndex);
+  const pathMetrics = { outsideSamples: 0, maxOutsideError: 0, boardSamples: 0, maxBoardSnapError: 0 };
+  const initialGrabTile = await grabbedGhostTile.boundingBox();
+  assert.ok(initialGrabTile);
+  const previous = {
+    finger: outsidePoint,
+    ghost: { x: initialGrabTile.x + initialGrabTile.width / 2, y: initialGrabTile.y + initialGrabTile.height / 2 },
+  };
+  for (let step = 1; step <= 24; step += 1) {
+    const fraction = step / 24;
+    const finger = {
+      x: outsidePoint.x + (targetPoint.x - outsidePoint.x) * fraction,
+      y: outsidePoint.y + (targetPoint.y - outsidePoint.y) * fraction,
+    };
     await cdp.send('Input.dispatchTouchEvent', {
       type: 'touchMove',
-      touchPoints: [{
-        x: outsidePoint.x + (targetPoint.x - outsidePoint.x) * fraction,
-        y: outsidePoint.y + (targetPoint.y - outsidePoint.y) * fraction,
-        id: 1,
-      }],
+      touchPoints: [{ ...finger, id: 1 }],
     });
-    await page.waitForTimeout(8);
+    await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(resolve)));
+    const ghostTile = await grabbedGhostTile.boundingBox();
+    assert.ok(ghostTile, `dragged tile should remain visible at touch sample ${step}`);
+    const ghostCenter = { x: ghostTile.x + ghostTile.width / 2, y: ghostTile.y + ghostTile.height / 2 };
+    const inBoard = finger.x >= board.x && finger.x < board.x + board.width
+      && finger.y >= board.y && finger.y < board.y + board.height;
+    if (inBoard) {
+      pathMetrics.boardSamples += 1;
+      const column = Math.floor((finger.x - board.x) / pitch);
+      const row = Math.floor((finger.y - board.y) / pitch);
+      const snappedCenter = {
+        x: board.x + (column + 0.5) * pitch,
+        y: board.y + (row + 0.5) * pitch,
+      };
+      pathMetrics.maxBoardSnapError = Math.max(pathMetrics.maxBoardSnapError, Math.hypot(ghostCenter.x - snappedCenter.x, ghostCenter.y - snappedCenter.y));
+    } else {
+      pathMetrics.outsideSamples += 1;
+      pathMetrics.maxOutsideError = Math.max(pathMetrics.maxOutsideError, Math.hypot(ghostCenter.x - finger.x, ghostCenter.y - finger.y));
+      const fingerStep = Math.hypot(finger.x - previous.finger.x, finger.y - previous.finger.y);
+      const ghostStep = Math.hypot(ghostCenter.x - previous.ghost.x, ghostCenter.y - previous.ghost.y);
+      assert.ok(Math.abs(ghostStep - fingerStep) <= 2, `ghost should move with the finger between samples ${step - 1} and ${step} (finger ${fingerStep.toFixed(2)}px, ghost ${ghostStep.toFixed(2)}px)`);
+    }
+    previous.finger = finger;
+    previous.ghost = ghostCenter;
   }
+
+  assert.ok(pathMetrics.outsideSamples > 0, 'the drag path should verify continuous follow before entering the board');
+  assert.ok(pathMetrics.boardSamples > 0, 'the drag path should verify snapping after entering the board');
+  assert.ok(pathMetrics.maxOutsideError <= 2, `drag ghost should stay under the finger outside the board, max error ${pathMetrics.maxOutsideError.toFixed(2)}px`);
+  assert.ok(pathMetrics.maxBoardSnapError <= 2, `drag ghost should snap to the hovered board cell, max error ${pathMetrics.maxBoardSnapError.toFixed(2)}px`);
+  console.log(`Touch drag tracking: ${pathMetrics.outsideSamples} free-follow samples (max ${pathMetrics.maxOutsideError.toFixed(2)}px gap), ${pathMetrics.boardSamples} board-snap samples (max ${pathMetrics.maxBoardSnapError.toFixed(2)}px error).`);
 
   const preview = await page.locator('.drag-ghost').boundingBox();
   assert.ok(preview);
