@@ -15,7 +15,7 @@ npm run dev
 
 打开 Vite 输出的本地地址，默认是 `http://127.0.0.1:5173/`。首次点击、触摸或按键后浏览器才允许启动音频。
 
-固定关卡对比可打开 `/?studyLevel=2`（牛油果目标）或 `/?studyLevel=7`（梨/苹果双目标）；不带参数仍从 Level 1 开始。Level 2、7 的棋盘布局属于手工研究夹具。
+固定关卡对比可打开 `/?studyLevel=2`（牛油果目标）、`/?studyLevel=4`（紫李目标）、`/?studyLevel=7`（梨/苹果双目标初始采样帧），以及 `/?studyLevel=7&studyFrame=pear-complete`（梨目标完成后的后续采样帧）；不带参数仍从 Level 1 开始。Level 2 仍是手工研究夹具；Level 4 和 Level 7 转录了微信视频中的静止帧，未观察到的后续移动仍是暂定实现。
 
 ```bash
 npm test

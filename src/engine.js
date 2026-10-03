@@ -22,16 +22,40 @@ const LEVEL_TWO = [
   'BB....BB',
 ];
 
-// Level 7 is a replay fixture for the multi-fruit objective visible in the
-// user's WeChat recording. The colors and fruit targets are observed; empty
-// cells outside the sampled frames remain a hand-built playable layout.
+// Static Level 4 study frame transcribed from the user's WeChat recording.
+const LEVEL_FOUR = [
+  'M...Y...',
+  '.M.GGY..',
+  '..Ym..Y.',
+  '...Y...Y',
+  'Y..B....',
+  '.Y.B.Y..',
+  '..Y...Y.',
+  '...Y...Y',
+];
+
+// Level 7 is transcribed from the visible WeChat frame sampled on 2026-10-03.
+// It contains one more apple marker than the 0/3 objective needs, as shown.
 const LEVEL_SEVEN = [
-  'QPBBB..G',
-  '..B.BA..',
-  '..QP....',
-  '...AP...',
+  'QP.....G',
+  'YpPBb..G',
+  '..QP...G',
+  '...pP..G',
   '....PP..',
-  '.....AP.',
+  '.....pP.',
+  '......PP',
+  '........',
+];
+
+// A later stable frame from the same WeChat clip, after the pear objective
+// has completed and two of the three apples have been collected.
+const LEVEL_SEVEN_PEAR_COMPLETE = [
+  '........',
+  '..B.BP..',
+  '........',
+  'G.GpP.GG',
+  '..G.PPGG',
+  '..GPPpP.',
   '......PP',
   '........',
 ];
@@ -66,8 +90,12 @@ export function boardFromRows(rows) {
     if (symbol === 'B') return { color: 'blue', apple: false };
     if (symbol === 'Y') return { color: 'yellow', apple: false };
     if (symbol === 'A') return { color: 'green', apple: true, fruit: 'apple' };
+    if (symbol === 'p') return { color: 'pink', apple: true, fruit: 'apple' };
+    if (symbol === 'b') return { color: 'blue', apple: true, fruit: 'apple' };
     if (symbol === 'Q') return { color: 'pink', apple: false, fruit: 'pear' };
     if (symbol === 'V') return { color: 'green', apple: false, fruit: 'avocado' };
+    if (symbol === 'M') return { color: 'yellow', apple: false, fruit: 'plum' };
+    if (symbol === 'm') return { color: 'green', apple: false, fruit: 'plum' };
     throw new Error(`Unknown board symbol: ${symbol}`);
   }));
 }
@@ -97,9 +125,9 @@ function collectFruits(state, fruitCells) {
 }
 
 export function createInitialState(level = 1) {
-  const board = boardFromRows(level === 7 ? LEVEL_SEVEN : level === 2 ? LEVEL_TWO : LEVEL_ONE);
-  const target = level === 6 ? 4 : 3;
-  if (level > 1 && level !== 2 && level !== 7) {
+  const board = boardFromRows(level === 7 ? LEVEL_SEVEN : level === 4 ? LEVEL_FOUR : level === 2 ? LEVEL_TWO : LEVEL_ONE);
+  const target = level === 6 ? 4 : level === 4 ? 2 : 3;
+  if (level > 1 && ![2, 4, 7].includes(level)) {
     let needed = Math.max(0, target - board.filter((cell) => cell?.apple).length);
     for (let offset = 0; offset < board.length && needed > 0; offset += 1) {
       const index = (level * 17 + offset * 13) % board.length;
@@ -111,7 +139,7 @@ export function createInitialState(level = 1) {
   }
   const objectives = level === 7
     ? [{ kind: 'pear', collected: 0, target: 2 }, { kind: 'apple', collected: 0, target: 3 }]
-    : [{ kind: level === 2 ? 'avocado' : 'apple', collected: 0, target }];
+    : [{ kind: level === 2 ? 'avocado' : level === 4 ? 'plum' : 'apple', collected: 0, target }];
   const starterPieces = level === 1
     ? [{ id: 1, name: 'single', color: 'green', cells: [[0, 0]], appleAt: 0 }]
     : level === 2
@@ -120,11 +148,12 @@ export function createInitialState(level = 1) {
         { id: 2, name: 'hook', color: 'blue', cells: [[0, 0], [1, 0], [2, 0], [0, 1], [0, 2]] },
         { id: 3, name: 'corner', color: 'yellow', cells: [[0, 0], [0, 1], [1, 1]] },
       ]
+    : level === 4
+      ? [{ id: 1, slot: 1, name: 'bar', color: 'blue', cells: [[0, 0], [1, 0], [2, 0]] }]
     : level === 7
       ? [
-        { id: 1, name: 'corner', color: 'blue', cells: [[0, 0], [1, 0], [0, 1]] },
-        { id: 2, name: 'bar', color: 'blue', cells: [[0, 0], [0, 1], [0, 2]] },
-        { id: 3, name: 'L', color: 'green', cells: [[0, 0], [0, 1], [0, 2], [1, 2]] },
+        { id: 1, slot: 0, name: 'single', color: 'yellow', cells: [[0, 0]], fruitAt: 0, fruit: 'pear' },
+        { id: 2, slot: 2, name: 'single', color: 'yellow', cells: [[0, 0]] },
       ]
       : null;
   const seededTray = starterPieces ? null : refillTray((0xC0C0A + level) >>> 0, 1);
@@ -134,12 +163,12 @@ export function createInitialState(level = 1) {
     level,
     board,
     tray,
-    nextPieceId: tray.length + 1,
+    nextPieceId: Math.max(...tray.map((piece) => piece.id)) + 1,
     seed: seededTray?.seed ?? (0xC0C0A + level) >>> 0,
     apples: 0,
     target,
     objectives,
-    chestProgress: level === 1 ? 2 : level === 7 ? 2006 : 2,
+    chestProgress: level === 1 ? 2 : level === 4 ? 947 : level === 7 ? 2007 : 2,
     chestTarget: chestTargets[level] ?? 500,
     score: 0,
     moves: 0,
@@ -147,6 +176,23 @@ export function createInitialState(level = 1) {
     combo: 0,
     status: 'playing',
     generation: 0,
+  };
+}
+
+export function createStudyState(level = 1, frame = 'opening') {
+  const state = createInitialState(level);
+  if (level !== 7 || frame !== 'pear-complete') return state;
+  return {
+    ...state,
+    board: boardFromRows(LEVEL_SEVEN_PEAR_COMPLETE),
+    tray: [{ id: 1, slot: 0, name: 'long bar', color: 'blue', cells: [[0, 0], [0, 1], [0, 2], [0, 3]] }],
+    nextPieceId: 2,
+    objectives: [
+      { kind: 'pear', collected: 2, target: 2 },
+      { kind: 'apple', collected: 2, target: 3 },
+    ],
+    apples: 2,
+    chestProgress: 2275,
   };
 }
 
@@ -182,7 +228,7 @@ function refillTray(seed, nextPieceId) {
   for (let i = 0; i < 3; i += 1) {
     currentSeed = nextRandom(currentSeed);
     const template = PIECE_POOL[currentSeed % PIECE_POOL.length];
-    pieces.push({ ...template, id: nextPieceId + i, cells: template.cells.map((cell) => [...cell]) });
+    pieces.push({ ...template, id: nextPieceId + i, slot: i, cells: template.cells.map((cell) => [...cell]) });
   }
   return { pieces, seed: currentSeed, nextPieceId: nextPieceId + 3 };
 }

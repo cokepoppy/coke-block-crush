@@ -1,7 +1,7 @@
 import {
   BOARD_SIZE,
   canPlace,
-  createInitialState,
+  createStudyState,
   nextLevel,
   pieceDimensions,
   placePiece,
@@ -37,15 +37,17 @@ const art = {
   apple: '/assets/apple.svg',
   pear: '/assets/pear.svg',
   avocado: '/assets/avocado.svg',
+  plum: '/assets/plum.svg',
   cat: '/assets/cat-avatar.svg',
   chest: '/assets/chest.svg',
 };
 
 const requestedStudyLevel = Number(new URLSearchParams(window.location.search).get('studyLevel'));
+const requestedStudyFrame = new URLSearchParams(window.location.search).get('studyFrame') ?? 'opening';
 const initialStudyLevel = Number.isInteger(requestedStudyLevel) && requestedStudyLevel >= 1 && requestedStudyLevel <= 7
   ? requestedStudyLevel
   : 1;
-let state = createInitialState(initialStudyLevel);
+let state = createStudyState(initialStudyLevel, requestedStudyFrame);
 let selectedPieceId = null;
 let activeTool = null;
 let drag = null;
@@ -133,7 +135,7 @@ function renderTray() {
   for (let slot = 0; slot < 3; slot += 1) {
     const holder = document.createElement('div');
     holder.className = 'piece-slot';
-    const piece = state.tray[slot];
+    const piece = state.tray.find((item, index) => (item.slot ?? index) === slot);
     if (piece) {
       const { width, height } = pieceDimensions(piece);
       const button = document.createElement('button');
@@ -170,7 +172,7 @@ function renderHeader() {
     const image = document.createElement('img');
     image.src = art[objective.kind] ?? art.apple;
     image.dataset.art = objective.kind;
-    image.alt = { pear: 'Pears', avocado: 'Avocados', apple: 'Apples' }[objective.kind] ?? 'Fruit';
+    image.alt = { pear: 'Pears', avocado: 'Avocados', apple: 'Apples', plum: 'Plums' }[objective.kind] ?? 'Fruit';
     const count = document.createElement('span');
     count.className = 'goal-count';
     count.textContent = `${objective.collected}/${objective.target}`;
@@ -595,10 +597,10 @@ function showModal(kind) {
   } else if (kind === 'village') {
     body = `<div class="panel"><button class="close" data-action="close" aria-label="Close">×</button><h2>Village</h2><div class="village-map" aria-hidden="true"><span>🌲</span><span>🏡</span><span>🍄</span></div><p>Collect apples and clear levels to help the village grow.</p><button class="panel-button" data-action="close">Back to Puzzle</button></div>`;
   } else if (kind === 'won') {
-    const collected = state.objectives.map((item) => `${item.collected}/${item.target} ${{ pear: 'pears', avocado: 'avocados', apple: 'apples' }[item.kind] ?? 'fruit'}`).join(' · ');
+    const collected = state.objectives.map((item) => `${item.collected}/${item.target} ${{ pear: 'pears', avocado: 'avocados', apple: 'apples', plum: 'plums' }[item.kind] ?? 'fruit'}`).join(' · ');
     body = `<div class="panel"><h2>Level Complete!</h2><div class="reward-fruits">${state.objectives.map((item) => `<img src="${art[item.kind] ?? art.apple}" data-art="${item.kind}" alt="" />`).join('')}</div><p>${collected}<br>Score ${state.score}</p><button class="panel-button" data-action="next">Next Level</button></div>`;
   } else {
-    const remaining = state.objectives.map((item) => `${item.target - item.collected} ${{ pear: 'pears', avocado: 'avocados', apple: 'apples' }[item.kind] ?? 'fruit'}`).join(' and ');
+    const remaining = state.objectives.map((item) => `${item.target - item.collected} ${{ pear: 'pears', avocado: 'avocados', apple: 'apples', plum: 'plums' }[item.kind] ?? 'fruit'}`).join(' and ');
     body = `<div class="panel"><h2>No More Moves</h2><p>Try another route to collect ${remaining}.</p><button class="panel-button" data-action="restart">Retry Level</button></div>`;
   }
   modalElement.innerHTML = body;
