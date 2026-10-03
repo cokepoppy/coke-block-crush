@@ -26,13 +26,13 @@ button:focus-visible { outline: 3px solid #fff8b7; outline-offset: 3px; }
 }
 .game::before { content: ''; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse 300px 600px at 52% 62%, #817ad011, transparent 80%); }
 
-.avatar { position: absolute; z-index: 2; left: 34px; top: 57px; width: 54px; height: 55px; padding: 0; border: 2px solid #c8ad89; border-radius: 3px; background: #30305b; box-shadow: 0 3px 4px #2523538a, inset 0 1px 1px #fff6; }
+.avatar { position: absolute; z-index: 2; left: 35px; top: 59px; width: 52px; height: 53px; padding: 0; border: 2px solid #c8ad89; border-radius: 3px; background: #30305b; box-shadow: 0 3px 4px #2523538a, inset 0 1px 1px #fff6; }
 .avatar img { width: 100%; height: 100%; display: block; }
-.chest-progress { position: absolute; left: 128px; top: 61px; width: 125px; height: 18px; border: 2px solid #d4c7e7; border-radius: 12px; background: #645b9a; box-shadow: inset 0 2px 3px #352c6a88, 0 2px 2px #302a6866; text-align: center; overflow: hidden; }
+.chest-progress { position: absolute; left: 128px; top: 61px; width: 107px; height: 17px; border: 2px solid #d4c7e7; border-radius: 12px; background: #645b9a; box-shadow: inset 0 2px 3px #352c6a88, 0 2px 2px #302a6866; text-align: center; overflow: hidden; }
 .chest-progress-fill { position: absolute; inset: 1px auto 1px 1px; width: 1%; border-radius: 8px; background: linear-gradient(90deg, #bba8f1, #f4e7ff); opacity: .82; }
 .chest-progress.advanced-chest .chest-progress-fill { background: linear-gradient(90deg, #ffb62d, #ffe87a); opacity: .9; }
 .chest-progress span { position: relative; top: -4px; font-size: 13px; letter-spacing: .2px; line-height: 22px; text-shadow: 1px 2px 1px #625278; }
-.chest { position: absolute; z-index: 2; top: 50px; left: 230px; width: 48px; height: 41px; border: 0; padding: 0; background: none; filter: drop-shadow(0 3px 2px #30215488); }
+.chest { position: absolute; z-index: 2; top: 54px; left: 234px; width: 35px; height: 28px; border: 0; padding: 0; background: none; filter: drop-shadow(0 3px 2px #30215488); }
 .chest img { width: 100%; height: 100%; }
 .level-label { position: absolute; margin: 0; top: 92px; left: 0; width: 100%; text-align: center; font-size: 27px; line-height: 32px; letter-spacing: .3px; color: #ffebfa; -webkit-text-stroke: .7px #c6a7ed; text-shadow: 1px 3px 0 #65529c, 0 4px 3px #352761aa; }
 .goal-card { position: absolute; z-index: 2; top: 146px; left: 145px; width: 96px; height: 56px; display: flex; align-items: center; justify-content: center; padding: 0 5px; border-radius: 7px; background: #35346dbb; box-shadow: inset 0 1px 2px #7772b22d; }

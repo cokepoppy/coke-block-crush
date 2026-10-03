@@ -70,6 +70,7 @@ export class AudioEngine {
       effectsEnabled: this.effectsEnabled,
       musicVoicesScheduled: this.musicVoicesScheduled,
       cuesPlayed: { ...this.cuesPlayed },
+      loadedSamples: [...this.samples.keys()].sort(),
       activeSources: this.sources.size,
       activeMusicSources: this.musicSources.size,
     };

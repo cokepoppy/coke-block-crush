@@ -26,18 +26,18 @@ The opening-frame test accepts a private source screenshot path and crop. The cu
 ```bash
 BLOCK_CRUSH_REFERENCE=/path/to/source-frame.png \
 BLOCK_CRUSH_REFERENCE_CROP=142,82,575,833 \
-BLOCK_CRUSH_REFERENCE_IGNORE='242,570,105,110' \
+BLOCK_CRUSH_REFERENCE_IGNORE='242,570,105,110;430,740,52,52' \
 npm run test:e2e -- --grep 'Level 1 has'
 ```
 
-Coordinates are `x,y,width,height` in the source image. When no actual crop is supplied, the comparison takes a top-aligned local game crop with the same aspect ratio, scales it to source-crop dimensions, then writes `reference-crop.png`, `actual-aligned.png`, `pixel-difference.png`, `overlay-50.png`, and `comparison.json` under the test's output directory.
+Coordinates are `x,y,width,height` in the source image. The browser expands the game to the source crop's pixel width, then captures the top-aligned game region at that width before comparison; this avoids scaling up a 390px screenshot for a 575px reference. It writes `reference-crop.png`, `actual-aligned.png`, `pixel-difference.png`, `overlay-50.png`, and `comparison.json` under the test's output directory. The masks cover the player play glyph and the touch marker only when they obscure game content.
 
 An optional failure threshold makes a source comparison a gate only after alignment and tolerance are reviewed:
 
 ```bash
 BLOCK_CRUSH_REFERENCE=/path/to/source-frame.png \
 BLOCK_CRUSH_REFERENCE_CROP=142,82,575,833 \
-BLOCK_CRUSH_REFERENCE_IGNORE='242,570,105,110' \
+BLOCK_CRUSH_REFERENCE_IGNORE='242,570,105,110;430,740,52,52' \
 BLOCK_CRUSH_MAX_DIFF_RATIO=0.08 \
 npm run test:e2e -- --grep 'Level 1 has'
 ```
@@ -47,3 +47,11 @@ Do not generalize the sample coordinates or tolerance to another source, level, 
 ## Audio feedback limits
 
 The automated test triggers a real user gesture and reads the running Web Audio context, cumulative scheduled music voices, accepted cue names, and toggle state through the read-only study snapshot. It verifies that music stops scheduling when muted and resumes when enabled. The browser test does not record or listen to rendered output; it cannot verify timbre, perceived loudness, clipping, or loop-seam quality. Keep those checks in the evidence ledger until matched-level listening or loopback recording is available.
+
+On a machine with the ignored local research pack present, exercise its five candidate WAV samples through browser decode as well:
+
+```bash
+BLOCK_CRUSH_USE_LOCAL_REFERENCE=1 npm run test:e2e -- --grep 'browser audio'
+```
+
+This optional run verifies that `button`, `place`, `clear`, `apple`, and `win` samples load. Their original in-game event mapping still requires source-audio verification.

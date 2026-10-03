@@ -29,7 +29,9 @@ async function openGame(page, route = '/') {
 test.beforeEach(async ({ page }) => {
   // Private research packs are optional. Snapshot tests always exercise the
   // tracked fallback assets so the committed baseline works on a clean clone.
-  await page.route('**/local-reference/**', (route) => route.abort());
+  if (!process.env.BLOCK_CRUSH_USE_LOCAL_REFERENCE) {
+    await page.route('**/local-reference/**', (route) => route.abort());
+  }
 });
 
 test('Level 1 has the observed opening structure and a stable visual baseline', async ({ page }, testInfo) => {
@@ -53,14 +55,21 @@ test('Level 1 has the observed opening structure and a stable visual baseline', 
 
   if (process.env.BLOCK_CRUSH_REFERENCE) {
     const crop = process.env.BLOCK_CRUSH_REFERENCE_CROP ?? '142,82,575,998';
+    const [left, top, width, height] = crop.split(',').map(Number);
     const ignores = (process.env.BLOCK_CRUSH_REFERENCE_IGNORE ?? '242,570,105,110;430,740,52,52')
       .split(';').filter(Boolean).map((region) => {
         const [left, top, width, height] = region.split(',').map(Number);
         return { left, top, width, height };
       });
-    const [left, top, width, height] = crop.split(',').map(Number);
+    // Capture at the source game's pixel width so the comparison does not
+    // count an upscaled 390px screenshot's interpolation as replica error.
+    await page.setViewportSize({ width, height: Math.round(width * 844 / 390) });
+    await page.evaluate(() => document.fonts.ready);
+    await page.waitForFunction((sourceWidth) => Math.abs(document.querySelector('#game').getBoundingClientRect().width - sourceWidth) <= 1, width);
+    const sourceViewportPath = testInfo.outputPath('source-viewport.png');
+    await page.locator('#game').screenshot({ path: sourceViewportPath, animations: 'disabled' });
     const comparison = await compareReference({
-      actualPath: screenshotPath,
+      actualPath: sourceViewportPath,
       referencePath: process.env.BLOCK_CRUSH_REFERENCE,
       referenceCrop: { left, top, width, height },
       ignoreRegions: ignores,
@@ -147,6 +156,18 @@ test('a legal input sequence clears a row, collects a fruit, and runs the feedba
   await expect(page.locator('.goal-count')).toHaveText('1/3');
   await expect(page.locator('#effects .line-beam')).toHaveCount(1);
   await expect(page.locator('#effects .flying-fruit')).toHaveCount(1);
+  await expect(page.locator('#effects .board-glow')).toHaveCount(1);
+  const effectAnimations = await page.evaluate(() => Object.fromEntries(
+    ['.line-beam', '.flying-fruit', '.board-glow'].map((selector) => {
+      const style = getComputedStyle(document.querySelector(`#effects ${selector}`));
+      return [selector, { name: style.animationName, duration: style.animationDuration }];
+    }),
+  ));
+  assert.deepEqual(effectAnimations, {
+    '.line-beam': { name: 'line-beam', duration: '0.65s' },
+    '.flying-fruit': { name: 'apple-flight', duration: '0.72s' },
+    '.board-glow': { name: 'board-glow', duration: '0.78s' },
+  });
   const cleared = await page.evaluate(() => window.blockCrushStudy.snapshot);
   assert.equal(cleared.moves, 4);
   assert.equal(cleared.combo, 1);
@@ -177,6 +198,10 @@ test('browser audio starts from a user gesture and honors music and effects swit
   assert.equal(started.contextState, 'running');
   assert.ok(started.musicVoicesScheduled > 0, 'music scheduler should create real Web Audio voices after the gesture');
   assert.ok(started.cuesPlayed.button > 0, 'the settings gesture should trigger the button sound');
+  if (process.env.BLOCK_CRUSH_USE_LOCAL_REFERENCE) {
+    await expect.poll(() => page.evaluate(() => window.blockCrushStudy.snapshot.audio.loadedSamples))
+      .toEqual(['apple', 'button', 'clear', 'place', 'win']);
+  }
 
   await page.locator('[data-action="toggle-music"]').click();
   await expect(page.locator('[data-action="toggle-music"]')).toHaveText('OFF');
