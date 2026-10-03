@@ -113,6 +113,7 @@ function tileElement(cell, small = false, justPlaced = false) {
     apple.src = art[fruit] ?? art.apple;
     apple.dataset.art = fruit;
     apple.alt = '';
+    apple.draggable = false;
     tile.append(apple);
   }
   return tile;
@@ -158,6 +159,8 @@ function renderTray() {
       piece.cells.forEach(([x, y], index) => {
         const fruit = piece.fruitAt === index ? piece.fruit : piece.appleAt === index ? 'apple' : null;
         const tile = tileElement({ color: piece.color, apple: fruit === 'apple', fruit }, true);
+        tile.dataset.pieceX = x;
+        tile.dataset.pieceY = y;
         tile.style.gridColumn = String(x + 1);
         tile.style.gridRow = String(y + 1);
         button.append(tile);
@@ -473,52 +476,95 @@ function localPoint(event) {
   return { x: (event.clientX - rect.left) / scale, y: (event.clientY - rect.top) / scale };
 }
 
-function makeGhost(piece) {
+function gameScale() {
+  return game.getBoundingClientRect().width / 390;
+}
+
+function grabPoint(event, button) {
+  const targetedTile = event.target.closest('.tile');
+  const tiles = [...button.querySelectorAll('.tile')];
+  const tile = targetedTile && button.contains(targetedTile)
+    ? targetedTile
+    : tiles.reduce((nearest, candidate) => {
+      const rect = candidate.getBoundingClientRect();
+      const dx = Math.max(rect.left - event.clientX, 0, event.clientX - rect.right);
+      const dy = Math.max(rect.top - event.clientY, 0, event.clientY - rect.bottom);
+      const distance = dx * dx + dy * dy;
+      return !nearest || distance < nearest.distance ? { tile: candidate, distance } : nearest;
+    }, null)?.tile;
+  if (!tile) return { cell: { x: 0, y: 0 }, offset: { x: CELL / 2, y: CELL / 2 } };
+
+  const rect = tile.getBoundingClientRect();
+  const fractionX = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
+  const fractionY = Math.max(0, Math.min(1, (event.clientY - rect.top) / rect.height));
+  const x = Number(tile.dataset.pieceX ?? 0);
+  const y = Number(tile.dataset.pieceY ?? 0);
+  return {
+    cell: { x, y },
+    offset: { x: (x + fractionX) * CELL, y: (y + fractionY) * CELL },
+  };
+}
+
+function makeGhost(piece, grabOffset) {
   const { width, height } = pieceDimensions(piece);
   const ghost = document.createElement('div');
   ghost.className = 'drag-ghost';
-  ghost.style.setProperty('--piece-cols', width);
-  ghost.style.setProperty('--piece-rows', height);
+  const body = document.createElement('div');
+  body.className = 'drag-ghost-body';
+  body.style.setProperty('--piece-cols', width);
+  body.style.setProperty('--piece-rows', height);
+  body.style.transformOrigin = `${grabOffset.x}px ${grabOffset.y}px`;
   piece.cells.forEach(([x, y], index) => {
     const fruit = piece.fruitAt === index ? piece.fruit : piece.appleAt === index ? 'apple' : null;
     const tile = tileElement({ color: piece.color, apple: fruit === 'apple', fruit });
     tile.style.gridColumn = String(x + 1);
     tile.style.gridRow = String(y + 1);
-    ghost.append(tile);
+    body.append(tile);
   });
+  ghost.append(body);
   game.append(ghost);
   return ghost;
 }
 
-function dragAnchor(event, piece) {
+function dragAnchor(event, currentDrag = drag) {
   const point = cellFromEvent(event);
-  if (!point) return null;
-  const dims = pieceDimensions(piece);
-  const anchorX = point.x - Math.floor((dims.width - 1) / 2);
-  const anchorY = point.y - Math.floor((dims.height - 1) / 2);
-  return { x: anchorX, y: anchorY };
+  if (!point || !currentDrag) return null;
+  return {
+    x: point.x - currentDrag.grabCell.x,
+    y: point.y - currentDrag.grabCell.y,
+  };
 }
 
 function updateDrag(event) {
   if (!drag) return;
   const distance = Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY);
-  if (!drag.moved && distance < 7) return;
+  if (!drag.moved && distance < 5) return;
   if (!drag.moved) {
     drag.moved = true;
-    drag.ghost = makeGhost(drag.piece);
+    drag.ghost = makeGhost(drag.piece, drag.grabOffset);
+    const liftedGhost = drag.ghost;
+    requestAnimationFrame(() => {
+      if (drag?.ghost === liftedGhost) liftedGhost.classList.add('lifted');
+    });
     drag.button.classList.add('drag-source');
   }
   const point = localPoint(event);
-  const dims = pieceDimensions(drag.piece);
-  const anchor = dragAnchor(event, drag.piece);
+  const scale = gameScale();
+  const boardRect = boardElement.getBoundingClientRect();
+  const gameRect = game.getBoundingClientRect();
+  const boardOrigin = {
+    x: (boardRect.left - gameRect.left) / scale,
+    y: (boardRect.top - gameRect.top) / scale,
+  };
+  const cellWidth = boardRect.width / BOARD_SIZE / scale;
+  const cellHeight = boardRect.height / BOARD_SIZE / scale;
+  const anchor = dragAnchor(event);
   const valid = anchor && canPlace(state.board, drag.piece, anchor.x, anchor.y);
   drag.ghost.classList.toggle('invalid', !valid);
   if (anchor) {
-    drag.ghost.style.left = `${BOARD_LEFT + anchor.x * CELL}px`;
-    drag.ghost.style.top = `${BOARD_TOP + anchor.y * CELL}px`;
+    drag.ghost.style.transform = `translate3d(${boardOrigin.x + anchor.x * cellWidth}px, ${boardOrigin.y + anchor.y * cellHeight}px, 0)`;
   } else {
-    drag.ghost.style.left = `${point.x - dims.width * CELL / 2}px`;
-    drag.ghost.style.top = `${point.y - dims.height * CELL / 2 - 45}px`;
+    drag.ghost.style.transform = `translate3d(${point.x - drag.grabOffset.x}px, ${point.y - drag.grabOffset.y}px, 0)`;
   }
   boardElement.querySelectorAll('.hover-valid, .hover-invalid').forEach((cell) => cell.classList.remove('hover-valid', 'hover-invalid'));
   if (anchor) {
@@ -531,15 +577,19 @@ function updateDrag(event) {
   }
 }
 
-function endDrag(event) {
-  if (!drag) return;
-  const current = drag;
-  drag = null;
+function clearDragFeedback(current) {
   current.button.classList.remove('drag-source');
   current.ghost?.remove();
   boardElement.querySelectorAll('.hover-valid, .hover-invalid').forEach((cell) => cell.classList.remove('hover-valid', 'hover-invalid'));
+}
+
+function endDrag(event) {
+  if (!drag) return;
+  const current = drag;
+  const anchor = current.moved ? dragAnchor(event, current) : null;
+  drag = null;
+  clearDragFeedback(current);
   if (current.moved) {
-    const anchor = dragAnchor(event, current.piece);
     if (anchor) applyResult(placePiece(state, current.piece.id, anchor.x, anchor.y));
     else showToast('Drop a block on the board.');
   } else {
@@ -551,6 +601,13 @@ function endDrag(event) {
   }
 }
 
+function cancelDrag(pointerId) {
+  if (!drag || (pointerId !== undefined && drag.pointerId !== pointerId)) return;
+  const current = drag;
+  drag = null;
+  clearDragFeedback(current);
+}
+
 trayElement.addEventListener('pointerdown', (event) => {
   const button = event.target.closest('.piece');
   if (!button || state.status !== 'playing') return;
@@ -559,12 +616,24 @@ trayElement.addEventListener('pointerdown', (event) => {
   const piece = state.tray.find((item) => item.id === Number(button.dataset.pieceId));
   if (!piece) return;
   if (activeTool === 'switcher') return applyResult(switchPieceColor(state, piece.id));
-  drag = { pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, piece, button, moved: false, ghost: null };
+  const grab = grabPoint(event, button);
+  drag = {
+    pointerId: event.pointerId,
+    startX: event.clientX,
+    startY: event.clientY,
+    piece,
+    button,
+    grabCell: grab.cell,
+    grabOffset: grab.offset,
+    moved: false,
+    ghost: null,
+  };
   button.setPointerCapture(event.pointerId);
 });
 trayElement.addEventListener('pointermove', (event) => { if (drag?.pointerId === event.pointerId) updateDrag(event); });
 trayElement.addEventListener('pointerup', (event) => { if (drag?.pointerId === event.pointerId) endDrag(event); });
-trayElement.addEventListener('pointercancel', (event) => { if (drag?.pointerId === event.pointerId) { drag.ghost?.remove(); drag = null; } });
+trayElement.addEventListener('pointercancel', (event) => cancelDrag(event.pointerId));
+trayElement.addEventListener('lostpointercapture', (event) => cancelDrag(event.pointerId));
 
 document.querySelectorAll('.booster').forEach((button) => button.addEventListener('click', () => {
   audio.start();

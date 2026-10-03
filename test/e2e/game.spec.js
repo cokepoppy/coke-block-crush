@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import { test, expect } from '@playwright/test';
+import { canPlace } from '../../src/engine.js';
 import { compareReference } from '../../scripts/compare-reference.mjs';
 
 function watchRuntime(page) {
@@ -143,6 +144,103 @@ test('real clicks place a block, reject an overlap, and restart without stale st
   assert.equal(afterRestart.moves, 0);
   assert.equal(afterRestart.board[0], null);
   assert.equal(afterRestart.chestProgress, 3);
+  assert.deepEqual(issues, []);
+});
+
+test('touch dragging from a piece bottom cell keeps that cell under the finger and snaps to the board', async ({ page }, testInfo) => {
+  const issues = watchRuntime(page);
+  await openGame(page, '/?studyLevel=2');
+
+  const starting = await page.evaluate(() => window.blockCrushStudy.snapshot);
+  const piece = starting.tray[0];
+  const grabbedCell = piece.cells.at(-1);
+  const anchor = { x: 0, y: 2 };
+  assert.deepEqual(grabbedCell, [0, 3]);
+  assert.ok(canPlace(starting.board, piece, anchor.x, anchor.y));
+
+  const pieceButton = page.getByRole('button', { name: 'blue long bar piece, 4 blocks' });
+  const grabbedTile = pieceButton.locator('.tile').nth(3);
+  const source = await grabbedTile.boundingBox();
+  const board = await page.locator('#board').boundingBox();
+  assert.ok(source && board);
+  const sourcePoint = { x: source.x + source.width / 2, y: source.y + source.height / 2 };
+  const pitch = board.width / 8;
+  const targetPoint = {
+    x: board.x + (anchor.x + grabbedCell[0] + 0.5) * pitch,
+    y: board.y + (anchor.y + grabbedCell[1] + 0.5) * pitch,
+  };
+
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 1 });
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ ...sourcePoint, id: 1 }] });
+  const outsidePoint = { x: sourcePoint.x + 1, y: sourcePoint.y - 16 };
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ ...outsidePoint, id: 1 }] });
+  await expect(page.locator('.drag-ghost')).toBeVisible();
+
+  const lifted = await page.locator('.drag-ghost').boundingBox();
+  assert.ok(lifted);
+  const liftedGrabCenter = { x: lifted.x + 21.5, y: lifted.y + (grabbedCell[1] + 0.5) * 43 };
+  assert.ok(Math.abs(liftedGrabCenter.x - outsidePoint.x) <= 2, `lifted cell x ${liftedGrabCenter.x} should follow finger x ${outsidePoint.x}`);
+  assert.ok(Math.abs(liftedGrabCenter.y - outsidePoint.y) <= 2, `lifted cell y ${liftedGrabCenter.y} should follow finger y ${outsidePoint.y}`);
+
+  for (let step = 1; step <= 12; step += 1) {
+    const fraction = step / 12;
+    await cdp.send('Input.dispatchTouchEvent', {
+      type: 'touchMove',
+      touchPoints: [{
+        x: outsidePoint.x + (targetPoint.x - outsidePoint.x) * fraction,
+        y: outsidePoint.y + (targetPoint.y - outsidePoint.y) * fraction,
+        id: 1,
+      }],
+    });
+    await page.waitForTimeout(8);
+  }
+
+  const preview = await page.locator('.drag-ghost').boundingBox();
+  assert.ok(preview);
+  assert.ok(Math.abs(preview.x - (board.x + anchor.x * pitch)) <= 2);
+  assert.ok(Math.abs(preview.y - (board.y + anchor.y * pitch)) <= 2);
+  const previewPath = testInfo.outputPath('touch-drag-bottom-cell-preview.png');
+  await mkdir(path.dirname(previewPath), { recursive: true });
+  await page.locator('#game').screenshot({ path: previewPath, animations: 'disabled' });
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+
+  const placed = await page.evaluate(() => window.blockCrushStudy.snapshot);
+  assert.equal(placed.moves, 1);
+  assert.equal(placed.objectives.find((objective) => objective.kind === 'avocado')?.collected, 1);
+  assert.ok(placed.board.every((cell, index) => index % 8 !== anchor.x || cell === null), 'the dragged bar should complete and clear the previewed column');
+  assert.deepEqual(issues, []);
+  await cdp.detach();
+});
+
+test('mouse dragging follows a tray piece through the centered desktop layout', async ({ page }) => {
+  const issues = watchRuntime(page);
+  await openGame(page);
+  await page.setViewportSize({ width: 854, height: 1328 });
+
+  const pieceTile = page.getByRole('button', { name: /green single piece,/ }).locator('.tile').first();
+  const source = await pieceTile.boundingBox();
+  const target = await page.getByRole('gridcell', { name: 'Row 1, column 1: empty' }).boundingBox();
+  const game = await page.locator('#game').boundingBox();
+  assert.ok(source && target && game);
+  const sourcePoint = { x: source.x + source.width / 2, y: source.y + source.height / 2 };
+  const targetPoint = { x: target.x + target.width / 2, y: target.y + target.height / 2 };
+
+  await page.mouse.move(sourcePoint.x, sourcePoint.y);
+  await page.mouse.down();
+  await page.mouse.move(sourcePoint.x + 10, sourcePoint.y - 10);
+  await expect(page.locator('.drag-ghost')).toBeVisible();
+  const lifted = await page.locator('.drag-ghost').boundingBox();
+  assert.ok(lifted);
+  const liftedCellCenter = { x: lifted.x + lifted.width / 2, y: lifted.y + lifted.height / 2 };
+  assert.ok(Math.abs(liftedCellCenter.x - (sourcePoint.x + 10)) <= 2);
+  assert.ok(Math.abs(liftedCellCenter.y - (sourcePoint.y - 10)) <= 2);
+
+  await page.mouse.move(targetPoint.x, targetPoint.y, { steps: 14 });
+  await page.mouse.up();
+  await expect(page.getByRole('gridcell', { name: 'Row 1, column 1: green block with apple' })).toBeVisible();
+  const placed = await page.evaluate(() => window.blockCrushStudy.snapshot);
+  assert.equal(placed.moves, 1);
   assert.deepEqual(issues, []);
 });
 
